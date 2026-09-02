@@ -7,15 +7,12 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { useCallback, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import Ad from '../../../components/Ad';
 import Layout from '../../../components/Layout';
 import ProductPrice from '../../../components/ProductPrice';
-import Recommendations from '../../../components/Recommendations';
 import Select from '../../../components/Select';
 import { CypressFields } from '../../../utils/enums/CypressFields';
 import ApiGateway from '../../../gateways/Api.gateway';
 import { Product } from '../../../protos/demo';
-import AdProvider from '../../../providers/Ad.provider';
 import { useCart } from '../../../providers/Cart.provider';
 import * as S from '../../../styles/ProductDetail.styled';
 import { useCurrency } from '../../../providers/Currency.provider';
@@ -27,7 +24,6 @@ const ProductDetail: NextPage = () => {
   const [quantity, setQuantity] = useState(1);
   const {
     addItem,
-    cart: { items },
   } = useCart();
   const { selectedCurrency } = useCurrency();
   const productId = query.productId as string;
@@ -42,7 +38,6 @@ const ProductDetail: NextPage = () => {
       picture,
       description,
       priceUsd = { units: 0, currencyCode: 'USD', nanos: 0 },
-      categories,
     } = {} as Product,
   } = useQuery({
       queryKey: ['product', productId, 'selectedCurrency', selectedCurrency],
@@ -60,10 +55,6 @@ const ProductDetail: NextPage = () => {
   }, [addItem, productId, quantity, push]);
 
   return (
-    <AdProvider
-      productIds={[productId, ...items.map(({ productId }) => productId)]}
-      contextKeys={[...new Set(categories)]}
-    >
       <Head>
         <title>Otel Demo - Product</title>
       </Head>
@@ -99,11 +90,8 @@ const ProductDetail: NextPage = () => {
               </S.AddToCart>
             </S.Details>
           </S.Container>
-          <Recommendations />
         </S.ProductDetail>
-        <Ad />
       </Layout>
-    </AdProvider>
   );
 };
 

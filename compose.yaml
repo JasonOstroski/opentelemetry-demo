@@ -5,12 +5,10 @@
 # Layer additional files on top with -f:
 #   Full demo (adds Kafka, accounting, fraud-detection):
 #     docker compose -f compose.yaml -f compose.full.yaml up
-#   With observability stack (Jaeger, Prometheus, OpenSearch, Grafana, OpAMP):
-#     docker compose -f compose.yaml -f compose.observability.yaml up
-#   Default (full + observability):
-#     docker compose -f compose.yaml -f compose.full.yaml -f compose.observability.yaml up
+#   Configure the OpenTelemetry Collector to export to the external telemetry
+#   backend, such as Bluebox.
 #   With extras (vendor customizations, additional components):
-#     docker compose -f compose.yaml [-f compose.full.yaml] -f compose.observability.yaml -f compose.extras.yaml up
+#     docker compose -f compose.yaml [-f compose.full.yaml] -f compose.extras.yaml up
 
 x-default-logging: &logging
   driver: "json-file"
@@ -32,6 +30,7 @@ services:
   ad:
     image: ${IMAGE_NAME}:${DEMO_VERSION}-ad
     container_name: ad
+    profiles: [full]
     build:
       context: ./
       dockerfile: ${AD_DOCKERFILE}
@@ -131,11 +130,8 @@ services:
       - FLAGD_PORT
       - CHECKOUT_PORT
       - CART_ADDR
-      - CURRENCY_ADDR
-      - EMAIL_ADDR
       - PAYMENT_ADDR
       - PRODUCT_CATALOG_ADDR
-      - SHIPPING_ADDR
       - GOMEMLIMIT=16MiB
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://${OTEL_COLLECTOR_HOST}:${OTEL_COLLECTOR_PORT_HTTP}
       - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
@@ -151,15 +147,9 @@ services:
     depends_on:
       cart:
         condition: service_started
-      currency:
-        condition: service_healthy
-      email:
-        condition: service_healthy
       payment:
         condition: service_healthy
       product-catalog:
-        condition: service_started
-      shipping:
         condition: service_started
       otel-collector:
         condition: service_started
@@ -174,6 +164,7 @@ services:
   currency:
     image: ${IMAGE_NAME}:${DEMO_VERSION}-currency
     container_name: currency
+    profiles: [full]
     build:
       context: ./
       dockerfile: ${CURRENCY_DOCKERFILE}
@@ -211,6 +202,7 @@ services:
   email:
     image: ${IMAGE_NAME}:${DEMO_VERSION}-email
     container_name: email
+    profiles: [full]
     build:
       context: ./
       dockerfile: ${EMAIL_DOCKERFILE}
@@ -258,17 +250,13 @@ services:
           memory: 250M
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT}"
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
     environment:
       - PORT=${FRONTEND_PORT}
       - FRONTEND_ADDR
-      - AD_ADDR
       - CART_ADDR
       - CHECKOUT_ADDR
-      - CURRENCY_ADDR
       - PRODUCT_CATALOG_ADDR
-      - RECOMMENDATION_ADDR
-      - SHIPPING_ADDR
       - OTEL_EXPORTER_OTLP_ENDPOINT
       - OTEL_RESOURCE_ATTRIBUTES=${OTEL_RESOURCE_ATTRIBUTES},service.criticality=critical
       - ENV_PLATFORM
@@ -286,26 +274,14 @@ services:
       timeout: 10s
       retries: 5
     depends_on:
-      ad:
-        condition: service_healthy
       cart:
         condition: service_started
       checkout:
         condition: service_started
-      currency:
-        condition: service_healthy
       product-catalog:
-        condition: service_started
-      quote:
-        condition: service_healthy
-      recommendation:
-        condition: service_healthy
-      shipping:
         condition: service_started
       otel-collector:
         condition: service_started
-      image-provider:
-        condition: service_healthy
       flagd:
         condition: service_started
     logging: *logging
@@ -314,6 +290,7 @@ services:
   frontend-proxy:
     image: ${IMAGE_NAME}:${DEMO_VERSION}-frontend-proxy
     container_name: frontend-proxy
+    profiles: [full]
     build:
       context: ./
       dockerfile: ${FRONTEND_PROXY_DOCKERFILE}
@@ -380,6 +357,7 @@ services:
   image-provider:
     image: ${IMAGE_NAME}:${DEMO_VERSION}-image-provider
     container_name: image-provider
+    profiles: [full]
     build:
       context: ./
       dockerfile: ${IMAGE_PROVIDER_DOCKERFILE}
@@ -557,6 +535,7 @@ services:
   quote:
     image: ${IMAGE_NAME}:${DEMO_VERSION}-quote
     container_name: quote
+    profiles: [full]
     build:
       context: ./
       dockerfile: ${QUOTE_DOCKERFILE}
@@ -593,6 +572,7 @@ services:
   recommendation:
     image: ${IMAGE_NAME}:${DEMO_VERSION}-recommendation
     container_name: recommendation
+    profiles: [full]
     build:
       context: ./
       dockerfile: ${RECOMMENDATION_DOCKERFILE}
@@ -635,6 +615,7 @@ services:
   shipping:
     image: ${IMAGE_NAME}:${DEMO_VERSION}-shipping
     container_name: shipping
+    profiles: [full]
     build:
       context: ./
       dockerfile: ${SHIPPING_DOCKERFILE}
@@ -709,6 +690,7 @@ services:
   flagd-ui:
     image: ${IMAGE_NAME}:${DEMO_VERSION}-flagd-ui
     container_name: flagd-ui
+    profiles: [full]
     build:
       context: ./
       dockerfile: ${FLAGD_UI_DOCKERFILE}
@@ -747,6 +729,7 @@ services:
   telemetry-docs:
     image: ${IMAGE_NAME}:${DEMO_VERSION}-telemetry-docs
     container_name: telemetry-docs
+    profiles: [full]
     build:
       context: ./
       dockerfile: ${TELEMETRY_DOCS_DOCKERFILE}
@@ -822,7 +805,7 @@ services:
 
   # OpenTelemetry Collector
   # Base configuration: receives and processes telemetry, exports to debug only.
-  # Add compose.observability.yaml to enable Jaeger, Prometheus, OpenSearch, Grafana, and OpAMP.
+  # Configure an external exporter for the production telemetry backend.
   otel-collector:
     image: ${COLLECTOR_CONTRIB_IMAGE}
     container_name: otel-collector
@@ -846,11 +829,7 @@ services:
       - "${OTEL_COLLECTOR_PORT_HTTP}"
     logging: *logging
     environment:
-      - AD_PROMETHEUS_PORT
-      - FRONTEND_PROXY_ADDR
       - HOST_FILESYSTEM
-      - IMAGE_PROVIDER_HOST
-      - IMAGE_PROVIDER_PORT
       - OTEL_COLLECTOR_HOST
       - OTEL_COLLECTOR_PORT_GRPC
       - OTEL_COLLECTOR_PORT_HTTP

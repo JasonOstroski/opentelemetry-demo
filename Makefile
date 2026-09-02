@@ -19,18 +19,16 @@ DOCKER_COMPOSE_ENV=--env-file .env --env-file .env.override
 # Compose file layers — combine with -f flags for the desired configuration:
 #   Core (minimal):             compose.yaml
 #   Full (adds Kafka group):    compose.yaml + compose.full.yaml
-#   With observability stack:   + compose.observability.yaml
 #   With extras customizations: + compose.extras.yaml (always last)
 DOCKER_COMPOSE_FILES_CORE=-f compose.yaml
 DOCKER_COMPOSE_FILES_FULL=$(DOCKER_COMPOSE_FILES_CORE) -f compose.full.yaml
-DOCKER_COMPOSE_FILES_OBSERVABILITY=-f compose.observability.yaml
 DOCKER_COMPOSE_FILES_PROFILING=-f compose.profiling.yaml
 DOCKER_COMPOSE_FILES_EXTRAS=-f compose.extras.yaml
 DOCKER_COMPOSE_FILES_TESTS=-f compose.tests.yaml
 DOCKER_COMPOSE_FILES_AGENT=-f compose.agent.yaml
 
-# Default: full demo + observability stack + extras stub
-DOCKER_COMPOSE_FILES=$(DOCKER_COMPOSE_FILES_FULL) $(DOCKER_COMPOSE_FILES_OBSERVABILITY) $(DOCKER_COMPOSE_FILES_EXTRAS)
+# Default: 10-service demo + extras stub
+DOCKER_COMPOSE_FILES=$(DOCKER_COMPOSE_FILES_CORE) $(DOCKER_COMPOSE_FILES_EXTRAS)
 
 # Accept either `service=` or `SERVICE=` for single-service targets (build, restart, redeploy).
 # Must be evaluated at file scope; an `ifdef SERVICE` block inside a recipe is a shell command,
@@ -281,20 +279,16 @@ start:
 	@echo ""
 	@echo "OpenTelemetry Demo is running."
 	@echo "Go to http://localhost:8080 for the demo UI."
-	@echo "Go to http://localhost:8080/jaeger/ui for the Jaeger UI."
-	@echo "Go to http://localhost:8080/grafana/ for the Grafana UI."
 	@echo "Go to http://localhost:8080/loadgen/ for the Load Generator UI."
 	@echo "Go to http://localhost:8080/feature/ to change feature flags."
 	@echo "Go to http://localhost:8080/telemetry/ for the Weaver generated telemetry documentation."
 
 .PHONY: start-minimal
 start-minimal:
-	$(DOCKER_COMPOSE_CMD) $(DOCKER_COMPOSE_ENV) $(DOCKER_COMPOSE_FILES_CORE) $(DOCKER_COMPOSE_FILES_OBSERVABILITY) $(DOCKER_COMPOSE_FILES_EXTRAS) up --force-recreate --remove-orphans --detach
+	$(DOCKER_COMPOSE_CMD) $(DOCKER_COMPOSE_ENV) $(DOCKER_COMPOSE_FILES_CORE) $(DOCKER_COMPOSE_FILES_EXTRAS) up --force-recreate --remove-orphans --detach
 	@echo ""
 	@echo "OpenTelemetry Demo in minimal mode is running."
 	@echo "Go to http://localhost:8080 for the demo UI."
-	@echo "Go to http://localhost:8080/jaeger/ui for the Jaeger UI."
-	@echo "Go to http://localhost:8080/grafana/ for the Grafana UI."
 	@echo "Go to http://localhost:8080/loadgen/ for the Load Generator UI."
 	@echo "Go to http://localhost:8080/feature/ to change feature flags."
 	@echo "Go to http://localhost:8080/telemetry/ for the Weaver generated telemetry documentation."
@@ -321,12 +315,10 @@ start-minimal-no-o11y:
 
 .PHONY: start-profiling
 start-profiling:
-	$(DOCKER_COMPOSE_CMD) $(DOCKER_COMPOSE_ENV) $(DOCKER_COMPOSE_FILES_FULL) $(DOCKER_COMPOSE_FILES_OBSERVABILITY) $(DOCKER_COMPOSE_FILES_PROFILING) $(DOCKER_COMPOSE_FILES_EXTRAS) up --force-recreate --remove-orphans --detach
+	$(DOCKER_COMPOSE_CMD) $(DOCKER_COMPOSE_ENV) $(DOCKER_COMPOSE_FILES_FULL) $(DOCKER_COMPOSE_FILES_PROFILING) $(DOCKER_COMPOSE_FILES_EXTRAS) up --force-recreate --remove-orphans --detach
 	@echo ""
 	@echo "OpenTelemetry Demo in profiling mode is running."
 	@echo "Go to http://localhost:8080 for the demo UI."
-	@echo "Go to http://localhost:8080/jaeger/ui for the Jaeger UI."
-	@echo "Go to http://localhost:8080/grafana/ for the Grafana UI."
 	@echo "Go to http://localhost:8080/loadgen/ for the Load Generator UI."
 	@echo "Go to http://localhost:8080/profiles/ for the Firepit UI."
 	@echo "Go to http://localhost:8080/telemetry/ for the Weaver generated telemetry documentation."
@@ -337,8 +329,6 @@ start-agentic:
 	@echo ""
 	@echo "OpenTelemetry Demo with the agent, mcp and chatbot is running."
 	@echo "Go to http://localhost:8080 for the demo UI."
-	@echo "Go to http://localhost:8080/jaeger/ui for the Jaeger UI."
-	@echo "Go to http://localhost:8080/grafana/ for the Grafana UI."
 	@echo "Go to http://localhost:8080/loadgen/ for the Load Generator UI."
 	@echo "Go to http://localhost:8080/feature/ to change feature flags."
 	@echo "Go to http://localhost:8080/telemetry/ for the Weaver generated telemetry documentation."

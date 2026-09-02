@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useMemo } from 'react';
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
-import ApiGateway from '../../gateways/Api.gateway';
-import { Address, Money } from '../../protos/demo';
+import { Money } from '../../protos/demo';
 import { useCurrency } from '../../providers/Currency.provider';
 import { useCart } from '../../providers/Cart.provider';
 import { IProductCartItem } from '../../types/Cart';
@@ -20,21 +18,7 @@ interface IProps {
 const CartItems = ({ productList, shouldShowPrice = true }: IProps) => {
   const { updateItemQuantity } = useCart();
   const { selectedCurrency } = useCurrency();
-  const address: Address = {
-    streetAddress: '1600 Amphitheatre Parkway',
-    city: 'Mountain View',
-    state: 'CA',
-    country: 'United States',
-    zipCode: '94043',
-  };
-
-  const queryKey = ['shipping', productList, selectedCurrency, address];
-  const queryFn = () => ApiGateway.getShippingCost(productList, selectedCurrency, address);
-  const queryOptions: UseQueryOptions<Money, Error> = {
-    queryKey,
-    queryFn,
-  };
-  const { data: shippingConst = { units: 0, currencyCode: 'USD', nanos: 0 } } = useQuery(queryOptions);
+  const shippingConst = { units: 0, currencyCode: 'USD', nanos: 0 };
 
   const total = useMemo<Money>(() => {
     const nanoSum =

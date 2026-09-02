@@ -6,12 +6,9 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useMemo } from 'react';
-import Ad from '../../../../components/Ad';
 import Button from '../../../../components/Button';
 import Layout from '../../../../components/Layout';
 import ProductPrice from '../../../../components/ProductPrice';
-import Recommendations from '../../../../components/Recommendations';
-import AdProvider from '../../../../providers/Ad.provider';
 import { Money } from '../../../../protos/demo';
 import * as S from '../../../../styles/Checkout.styled';
 import { IProductCheckout } from '../../../../types/Cart';
@@ -40,10 +37,6 @@ const Checkout: NextPage = () => {
   }, [items, shippingCost]);
 
   return (
-    <AdProvider
-      productIds={items.map(({ item }) => item?.productId || '')}
-      contextKeys={[...new Set(items.flatMap(({ item }) => item.product.categories))]}
-    >
       <Head>
         <title>Otel Demo - Checkout</title>
       </Head>
@@ -115,11 +108,8 @@ const Checkout: NextPage = () => {
               </Link>
             </S.ButtonContainer>
           </S.Container>
-          <Recommendations />
         </S.Checkout>
-        <Ad />
       </Layout>
-    </AdProvider>
   );
 };
 

@@ -52,6 +52,7 @@ COPY --from=builder /app/.next/static/ .next/static/
 COPY --from=deps /app/node_modules/ node_modules/
 
 COPY ./src/frontend/public/ public/
+COPY ./src/image-provider/static/ public/
 
 COPY ./src/frontend/utils/telemetry/Instrumentation.js Instrumentation.js
 

@@ -132,26 +132,6 @@ class WebsiteUser(HttpUser):
             self.client.get("/api/products/" + product)
 
     @task(3)
-    def get_recommendations(self):
-        product = random.choice(products)
-        with self.tracer.start_as_current_span("user_get_recommendations", context=context.get_current(), attributes={"demo.product.id": product}):
-            logging.info(f"User getting recommendations for product: {product}")
-            params = {
-                "productIds": [product],
-            }
-            self.client.get("/api/recommendations", params=params)
-
-    @task(3)
-    def get_ads(self):
-        category = random.choice(categories)
-        with self.tracer.start_as_current_span("user_get_ads", context=context.get_current(), attributes={"demo.ad.category": str(category)}):
-            logging.info(f"User getting ads for category: {category}")
-            params = {
-                "contextKeys": [category],
-            }
-            self.client.get("/api/data/", params=params)
-
-    @task(3)
     def view_cart(self):
         with self.tracer.start_as_current_span("user_view_cart", context=context.get_current()):
             logging.info("User viewing cart")

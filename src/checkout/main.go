@@ -213,29 +213,14 @@ func main() {
 		Transport: otelhttp.NewTransport(http.DefaultTransport),
 	}
 
-	mustMapEnv(&svc.shippingSvcAddr, "SHIPPING_ADDR")
-	c := mustCreateClient(svc.shippingSvcAddr)
-	svc.shippingSvcClient = pb.NewShippingServiceClient(c)
-	defer c.Close()
-
 	mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_ADDR")
-	c = mustCreateClient(svc.productCatalogSvcAddr)
+	c := mustCreateClient(svc.productCatalogSvcAddr)
 	svc.productCatalogSvcClient = pb.NewProductCatalogServiceClient(c)
 	defer c.Close()
 
 	mustMapEnv(&svc.cartSvcAddr, "CART_ADDR")
 	c = mustCreateClient(svc.cartSvcAddr)
 	svc.cartSvcClient = pb.NewCartServiceClient(c)
-	defer c.Close()
-
-	mustMapEnv(&svc.currencySvcAddr, "CURRENCY_ADDR")
-	c = mustCreateClient(svc.currencySvcAddr)
-	svc.currencySvcClient = pb.NewCurrencyServiceClient(c)
-	defer c.Close()
-
-	mustMapEnv(&svc.emailSvcAddr, "EMAIL_ADDR")
-	c = mustCreateClient(svc.emailSvcAddr)
-	svc.emailSvcClient = pb.NewEmailServiceClient(c)
 	defer c.Close()
 
 	mustMapEnv(&svc.paymentSvcAddr, "PAYMENT_ADDR")
@@ -366,18 +351,11 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 		slog.String("transaction_id", txID),
 	)
 
-	shippingTrackingID, err := cs.shipOrder(ctx, req.Address, prep.cartItems)
-	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "shipping error: %+v", err)
-	}
-	shippingTrackingAttribute := attribute.String("demo.shipping.tracking.id", shippingTrackingID)
-	span.AddEvent("shipped", trace.WithAttributes(shippingTrackingAttribute))
-
 	_ = cs.emptyUserCart(ctx, req.UserId)
 
 	orderResult := &pb.OrderResult{
 		OrderId:            orderID.String(),
-		ShippingTrackingId: shippingTrackingID,
+		ShippingTrackingId: "",
 		ShippingCost:       prep.shippingCostLocalized,
 		ShippingAddress:    req.Address,
 		Items:              prep.orderItems,
@@ -391,7 +369,6 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 		attribute.Float64("demo.shipping.amount", shippingCostFloat),
 		attribute.Float64("demo.order.amount", totalPriceFloat),
 		attribute.Int("demo.order.items.count", len(prep.orderItems)),
-		shippingTrackingAttribute,
 	)
 	logger.LogAttrs(
 		ctx,
@@ -400,14 +377,7 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 		slog.Float64("demo.shipping.amount", shippingCostFloat),
 		slog.Float64("demo.order.amount", totalPriceFloat),
 		slog.Int("demo.order.items.count", len(prep.orderItems)),
-		slog.String("demo.shipping.tracking.id", shippingTrackingID),
 	)
-
-	if err := cs.sendOrderConfirmation(ctx, req.Email, orderResult); err != nil {
-		logger.Warn(fmt.Sprintf("failed to send order confirmation: %+v", err))
-	} else {
-		logger.Info("order confirmation email sent")
-	}
 
 	// send to kafka only if kafka broker address is set
 	if cs.kafkaBrokerSvcAddr != "" {
@@ -438,16 +408,7 @@ func (cs *checkout) prepareOrderItemsAndShippingQuoteFromCart(ctx context.Contex
 	if err != nil {
 		return out, fmt.Errorf("failed to prepare order: %+v", err)
 	}
-	shippingUSD, err := cs.quoteShipping(ctx, address, cartItems)
-	if err != nil {
-		return out, fmt.Errorf("shipping quote failure: %+v", err)
-	}
-	shippingPrice, err := cs.convertCurrency(ctx, shippingUSD, userCurrency)
-	if err != nil {
-		return out, fmt.Errorf("failed to convert shipping cost to currency: %+v", err)
-	}
-
-	out.shippingCostLocalized = shippingPrice
+	out.shippingCostLocalized = &pb.Money{CurrencyCode: "USD"}
 	out.cartItems = cartItems
 	out.orderItems = orderItems
 
@@ -455,7 +416,7 @@ func (cs *checkout) prepareOrderItemsAndShippingQuoteFromCart(ctx context.Contex
 	for _, ci := range cartItems {
 		totalCart += ci.Quantity
 	}
-	shippingCostFloat, _ := strconv.ParseFloat(fmt.Sprintf("%d.%02d", shippingPrice.GetUnits(), shippingPrice.GetNanos()/10000000), 64)
+	shippingCostFloat := float64(0)
 
 	span.SetAttributes(
 		attribute.Float64("demo.shipping.amount", shippingCostFloat),
@@ -542,13 +503,9 @@ func (cs *checkout) prepOrderItems(ctx context.Context, items []*pb.CartItem, us
 		if err != nil {
 			return nil, fmt.Errorf("failed to get product #%q", item.GetProductId())
 		}
-		price, err := cs.convertCurrency(ctx, product.GetPriceUsd(), userCurrency)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert price of %q to %s", item.GetProductId(), userCurrency)
-		}
 		out[i] = &pb.OrderItem{
 			Item: item,
-			Cost: price,
+			Cost: product.GetPriceUsd(),
 		}
 	}
 	return out, nil

@@ -13,13 +13,9 @@ const myEnv = dotEnv.config({
 dotenvExpand.expand(myEnv);
 
 const {
-  AD_ADDR = '',
   CART_ADDR = '',
   CHECKOUT_ADDR = '',
-  CURRENCY_ADDR = '',
   PRODUCT_CATALOG_ADDR = '',
-  RECOMMENDATION_ADDR = '',
-  SHIPPING_ADDR = '',
   ENV_PLATFORM = '',
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = '',
   OTEL_SERVICE_NAME = 'frontend',
@@ -51,13 +47,9 @@ const nextConfig = {
     return config;
   },
   env: {
-    AD_ADDR,
     CART_ADDR,
     CHECKOUT_ADDR,
-    CURRENCY_ADDR,
     PRODUCT_CATALOG_ADDR,
-    RECOMMENDATION_ADDR,
-    SHIPPING_ADDR,
     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
     NEXT_PUBLIC_PLATFORM: ENV_PLATFORM,
     NEXT_PUBLIC_OTEL_SERVICE_NAME: OTEL_SERVICE_NAME,
